@@ -43,7 +43,7 @@ class CachingDNS:
 
     def _console_listening(self):
         while True:
-            console_input = input('>>')
+            console_input = input('')
             if console_input == self._SERVER_STOP_COMMAND:
                 with self._server_stop_lock:
                     self._server_stop_value = True
