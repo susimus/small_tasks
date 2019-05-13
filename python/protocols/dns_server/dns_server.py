@@ -14,6 +14,7 @@ from socket import (
     socket as socket_socket,
     AF_INET as SOCKET_AF_INET,
     SOCK_DGRAM as SOCKET_SOCK_DGRAM,
+    SOCK_STREAM as SOCKET_SOCK_STREAM,
     timeout as socket_timeout)
 from dnslib import DNSRecord, DNSError
 from urllib.error import URLError
@@ -117,75 +118,74 @@ class CachingDNS:
         expiration_checker = Thread(target=self._expiration_checking, daemon=True)
         expiration_checker.start()
 
-        server_socket = socket_socket(SOCKET_AF_INET, SOCKET_SOCK_DGRAM)
+        server_socket = socket_socket(SOCKET_AF_INET, SOCKET_SOCK_STREAM)
         server_socket.bind((self._SERVER_HOST, self._SERVER_PORT))
-        server_socket.settimeout(1)
+        server_socket.listen(1)
+        server_socket.settimeout(2)
 
         while True:
             try:
-                user_data, user_address = server_socket.recvfrom(4096)
+                user_connection, user_address = server_socket.accept()
             except socket_timeout:
                 if self._server_stop:
                     break
 
                 continue
 
-            assert (user_data, user_address) != (None, None)
+            with user_connection:
+                user_data = user_connection.recv(4096)
 
-            try:
-                self._cache_lock.acquire()
+                try:
+                    self._cache_lock.acquire()
 
-                cache_rr = (user_data.decode(), "A")
-                if cache_rr in self._dns_cache:
-                    print('cache used: ' + str(self._dns_cache[cache_rr]))
+                    cache_rr = (user_data.decode(), "A")
+                    if cache_rr in self._dns_cache:
+                        print('cache used: ' + str(self._dns_cache[cache_rr]))
 
-                    self._question_socket.sendto(
-                        ("Non-Authoritative answer:\n"
-                         + str(self._dns_cache[cache_rr])).encode(),
-                        user_address)
+                        user_connection.sendall(
+                            ("Non-Authoritative answer:\n"
+                             + str(self._dns_cache[cache_rr])).encode())
 
-                    continue
-            finally:
-                self._cache_lock.release()
+                        continue
+                finally:
+                    self._cache_lock.release()
 
-            user_question = DNSRecord.question(user_data.decode(), "NS")
-            try:
-                parsed_answer_ns = self._resolve_question(
-                    user_question,
-                    self._SERVER_DNS)
-
-                for resource_record_ns in parsed_answer_ns.rr:
-                    ns_ip_answer = self._resolve_question(
-                        DNSRecord.question(str(resource_record_ns.rdata), "A"),
+                user_question = DNSRecord.question(user_data.decode(), "NS")
+                try:
+                    parsed_answer_ns = self._resolve_question(
+                        user_question,
                         self._SERVER_DNS)
-                    if len(ns_ip_answer.rr) == 0:
-                        continue
 
-                    resolved_question = self._resolve_question(
-                        DNSRecord.question(user_data.decode(), "A"),
-                        str(ns_ip_answer.rr[0].rdata))
-                    if len(resolved_question.rr) == 0:
-                        continue
+                    for resource_record_ns in parsed_answer_ns.rr:
+                        ns_ip_answer = self._resolve_question(
+                            DNSRecord.question(str(resource_record_ns.rdata), "A"),
+                            self._SERVER_DNS)
+                        if len(ns_ip_answer.rr) == 0:
+                            continue
 
-                    # TODO: Send to user not only first address
-                    # TODO: Collect all rrs from final dns
-                    self._add_to_cache(
-                        user_data.decode(),
-                        "A",
-                        str(resolved_question.rr[0].rdata))
-                    self._question_socket.sendto(
-                        ("Non-Authoritative answer:\n"
-                         + str(resolved_question.rr[0].rdata)).encode(),
-                        user_address)
-                else:
-                    self._question_socket.sendto(
-                        "Cannot resolve query".encode(),
-                        user_address)
-            except (URLError, socket_timeout, DNSError) as occurred_error:
-                self._question_socket.sendto(
-                    ("Error occurred while data was resolving:\n"
-                     + str(occurred_error)).encode(),
-                    user_address)
+                        resolved_question = self._resolve_question(
+                            DNSRecord.question(user_data.decode(), "A"),
+                            str(ns_ip_answer.rr[0].rdata))
+                        if len(resolved_question.rr) == 0:
+                            continue
+
+                        # TODO: Send to user not only first address
+                        # TODO: Collect all rrs from final dns
+                        self._add_to_cache(
+                            user_data.decode(),
+                            "A",
+                            str(resolved_question.rr[0].rdata))
+                        user_connection.sendall(
+                            ("Non-Authoritative answer:\n"
+                             + str(resolved_question.rr[0].rdata)).encode())
+
+                        break
+                    else:
+                        user_connection.sendall("Cannot resolve query".encode())
+                except (URLError, socket_timeout, DNSError) as occurred_error:
+                    user_connection.sendall(
+                        ("Error occurred while data was resolving:\n"
+                         + str(occurred_error)).encode())
 
         if len(self._dns_cache) == 0:
             return

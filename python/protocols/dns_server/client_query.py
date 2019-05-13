@@ -1,8 +1,9 @@
 from socket import (
     socket as socket_socket,
-    SOCK_DGRAM as SOCKET_SOCK_DGRAM,
+    SOCK_STREAM as SOCKET_SOCK_STREAM,
     AF_INET as SOCKET_AF_INET,
-    timeout as socket_timeout)
+    timeout as socket_timeout,
+    create_connection as socket_create_connection)
 
 SERVER_HOST = '127.0.0.2'
 SERVER_PORT = 53
@@ -11,29 +12,14 @@ USER_STOP_COMMAND = "USER_STOP"
 
 
 if __name__ == "__main__":
-    user_socket = socket_socket(SOCKET_AF_INET, SOCKET_SOCK_DGRAM)
-    user_socket.settimeout(5)
     while True:
         console_input = input()
         if console_input == USER_STOP_COMMAND:
             break
 
-        user_socket.sendto(
-            console_input.encode(),
-            (SERVER_HOST, 53))
-        try:
-            print(user_socket.recvfrom(4096)[0].decode())
-        except socket_timeout:
-            pass
+        with socket_socket(SOCKET_AF_INET, SOCKET_SOCK_STREAM) as user_socket:
+            user_socket.connect((SERVER_HOST, SERVER_PORT))
 
-# TODO: What with the packets???
-# TODO: Change server connection to TCP
-# python.or
-# Non-Authoritative answer:
-# 45.55.99.72
-#
-# Non-Authoritative answer:
-# 45.55.99.72
-# 1
-# Non-Authoritative answer:
-# 45.55.99.72
+            user_socket.sendall(console_input.encode())
+
+            print(user_socket.recv(4096).decode())
