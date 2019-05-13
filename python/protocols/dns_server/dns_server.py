@@ -177,6 +177,8 @@ class CachingDNS:
                         ("Non-Authoritative answer:\n"
                          + str(resolved_question.rr[0].rdata)).encode(),
                         user_address)
+
+                    break
                 else:
                     self._question_socket.sendto(
                         "Cannot resolve query".encode(),
