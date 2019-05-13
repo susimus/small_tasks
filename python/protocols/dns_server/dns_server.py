@@ -1,17 +1,22 @@
-from time import time
+from time import (
+    time as time_time,
+    sleep as time_sleep)
 from pickle import (
     dump as pickle_dump,
     load as pickle_load)
-from socket import (
-    socket,
-    AF_INET as SOCKET_AF_INET,
-    SOCK_STREAM as SOCKET_SOCK_STREAM,
-    SHUT_RDWR as SOCKET_SHUT_RDWR,
-    timeout as socket_timeout)
+from typing import Dict, Tuple, Set
 from threading import (
     Thread,
     Lock as threading_Lock)
 from os import remove as os_remove
+# Network modules
+from socket import (
+    socket as socket_socket,
+    AF_INET as SOCKET_AF_INET,
+    SOCK_DGRAM as SOCKET_SOCK_DGRAM,
+    timeout as socket_timeout)
+from dnslib import DNSRecord, DNSError
+from urllib.error import URLError
 
 
 class CachingDNS:
@@ -19,82 +24,177 @@ class CachingDNS:
     _SERVER_PORT = 53
     _SERVER_CACHE_FILE = "dns_server_cache.dat"
     _SERVER_STOP_COMMAND = "SERVER_STOP"
+    _SERVER_DNS = "10.98.240.10"  # it is router!
+    _SERVER_TTL = 100  # seconds
 
-    _server_stop_lock = threading_Lock()
-    _server_stop_value = False
+    _server_stop = False
 
-    _dns_cache = dict()  # { domain1 : {ip1, ip2, ...}, ip3 : {domain2, domain3, ...}, ...}
+    # Specific thread every event_handler cycle check previous seconds if there is removing should
+    # be done
+    _cache_lock = threading_Lock()
+    _dns_cache: Dict[Tuple[str, str], Set[str]]
+    _last_check_time: int
+    _expiration_dict: Dict[int, Set[Tuple[str, str, str]]]
 
-    # Every event_handler cycle check previous seconds if there is removing should be done
-    _last_check_time = time()
-    _expiration_dict = dict()  # { expiration_time : [domain1, ip1, ip2 ...], ... }
+    _question_socket = socket_socket(SOCKET_AF_INET, SOCKET_SOCK_DGRAM)
+    _question_socket.settimeout(1)
 
-    def _add_to_cache(self, domain_ip_pair: tuple):
-        assert len(domain_ip_pair) == 2
-        assert isinstance(domain_ip_pair[0], str) and isinstance(domain_ip_pair[1], str)
+    def _add_to_cache(self, r_name: str, r_type: str, r_data: str) -> None:
+        try:
+            self._cache_lock.acquire()
 
-        if self._dns_cache.get(domain_ip_pair[0]) is None:
-            self._dns_cache[domain_ip_pair[0]] = set()
-        if self._dns_cache.get(domain_ip_pair[1]) is None:
-            self._dns_cache[domain_ip_pair[1]] = set()
+            if (r_name, r_type) not in self._dns_cache:
+                self._dns_cache[(r_name, r_type)] = {r_data}
+            else:
+                self._dns_cache[(r_name, r_type)].add(r_data)
 
-        self._dns_cache[domain_ip_pair[0]].add(domain_ip_pair[1])
-        self._dns_cache[domain_ip_pair[1]].add(domain_ip_pair[0])
+            expiration_time = int(time_time()) + self._SERVER_TTL
+            if expiration_time in self._expiration_dict:
+                self._expiration_dict[expiration_time].add((r_name, r_type, r_data))
+            else:
+                self._expiration_dict[expiration_time] = {(r_name, r_type, r_data)}
+        finally:
+            self._cache_lock.release()
 
-    def _console_listening(self):
+    def _console_listening(self) -> None:
         while True:
-            console_input = input('')
+            console_input = input()
             if console_input == self._SERVER_STOP_COMMAND:
-                with self._server_stop_lock:
-                    self._server_stop_value = True
-                    break
+                self._server_stop = True
+                break
 
-    def _check_for_expiration(self):  # TODO
-        pass
+    def _expiration_checking(self) -> None:
+        while True:
+            time_sleep(1)
 
-    def main_loop(self):
-        self._check_for_expiration()
+            try:
+                self._cache_lock.acquire()
+
+                current_check_time = int(time_time())
+                for some_time in range(self._last_check_time, current_check_time):
+                    if some_time in self._expiration_dict:
+                        for r_name, r_type, r_data in self._expiration_dict.pop(some_time):
+                            if (r_name, r_type) in self._dns_cache:
+                                self._dns_cache[(r_name, r_type)].remove(r_data)
+
+                                if len(self._dns_cache[(r_name, r_type)]) == 0:
+                                    self._dns_cache.pop((r_name, r_type))
+
+                self._last_check_time = current_check_time
+            finally:
+                self._cache_lock.release()
+
+    def _resolve_question(self, resolve_question: DNSRecord, ns_address: str) -> DNSRecord:
+        self._question_socket.sendto(resolve_question.pack(), (ns_address, 53))
 
         try:
+            ns_raw_answer, _ = self._question_socket.recvfrom(4096)
+
+            return DNSRecord.parse(ns_raw_answer)
+        except (socket_timeout, DNSError):
+            return DNSRecord()
+
+    def main_loop(self) -> None:
+        try:
+            self._cache_lock.acquire()
+
             with open(self._SERVER_CACHE_FILE, "rb") as cache_file:
-                _dns_cache = pickle_load(cache_file)
-                _expiration_dict = pickle_load(cache_file)
+                self._dns_cache = pickle_load(cache_file)
+                self._expiration_dict = pickle_load(cache_file)
+                self._last_check_time = pickle_load(cache_file)
 
             os_remove(self._SERVER_CACHE_FILE)
         except OSError:
-            pass
+            self._dns_cache = dict()
+            self._expiration_dict = dict()
+            self._last_check_time = int(time_time())
+        finally:
+            self._cache_lock.release()
 
         console_listener = Thread(target=self._console_listening, daemon=True)
         console_listener.start()
 
-        server_socket = socket(SOCKET_AF_INET, SOCKET_SOCK_STREAM)
+        expiration_checker = Thread(target=self._expiration_checking, daemon=True)
+        expiration_checker.start()
+
+        server_socket = socket_socket(SOCKET_AF_INET, SOCKET_SOCK_DGRAM)
         server_socket.bind((self._SERVER_HOST, self._SERVER_PORT))
-        server_socket.listen(1)
         server_socket.settimeout(1)
 
         while True:
             try:
-                user_connection, user_address = server_socket.accept()
+                user_data, user_address = server_socket.recvfrom(4096)
             except socket_timeout:
-                with self._server_stop_lock:
-                    if self._server_stop_value is True:
-                        break
+                if self._server_stop:
+                    break
 
                 continue
 
-            assert (user_connection, user_address) != (None, None)
+            assert (user_data, user_address) != (None, None)
 
-            with user_connection:
-                print("Connection from {0}".format(user_address))
-                print(user_connection.recv(4096).decode('utf-8'))
-                user_connection.shutdown(SOCKET_SHUT_RDWR)
+            try:
+                self._cache_lock.acquire()
+
+                cache_rr = (user_data.decode(), "A")
+                if cache_rr in self._dns_cache:
+                    print('cache used: ' + str(self._dns_cache[cache_rr]))
+
+                    self._question_socket.sendto(
+                        ("Non-Authoritative answer:\n"
+                         + str(self._dns_cache[cache_rr])).encode(),
+                        user_address)
+
+                    continue
+            finally:
+                self._cache_lock.release()
+
+            user_question = DNSRecord.question(user_data.decode(), "NS")
+            try:
+                parsed_answer_ns = self._resolve_question(
+                    user_question,
+                    self._SERVER_DNS)
+
+                for resource_record_ns in parsed_answer_ns.rr:
+                    ns_ip_answer = self._resolve_question(
+                        DNSRecord.question(str(resource_record_ns.rdata), "A"),
+                        self._SERVER_DNS)
+                    if len(ns_ip_answer.rr) == 0:
+                        continue
+
+                    resolved_question = self._resolve_question(
+                        DNSRecord.question(user_data.decode(), "A"),
+                        str(ns_ip_answer.rr[0].rdata))
+                    if len(resolved_question.rr) == 0:
+                        continue
+
+                    # TODO: Send to user not only first address
+                    # TODO: Collect all rrs from final dns
+                    self._add_to_cache(
+                        user_data.decode(),
+                        "A",
+                        str(resolved_question.rr[0].rdata))
+                    self._question_socket.sendto(
+                        ("Non-Authoritative answer:\n"
+                         + str(resolved_question.rr[0].rdata)).encode(),
+                        user_address)
+                else:
+                    self._question_socket.sendto(
+                        "Cannot resolve query".encode(),
+                        user_address)
+            except (URLError, socket_timeout, DNSError) as occurred_error:
+                self._question_socket.sendto(
+                    ("Error occurred while data was resolving:\n"
+                     + str(occurred_error)).encode(),
+                    user_address)
 
         if len(self._dns_cache) == 0:
             return
 
+        self._cache_lock.acquire()
         with open(self._SERVER_CACHE_FILE, "wb") as cache_file:
             pickle_dump(self._dns_cache, cache_file)
             pickle_dump(self._expiration_dict, cache_file)
+            pickle_dump(self._last_check_time, cache_file)
 
 
 if __name__ == "__main__":
