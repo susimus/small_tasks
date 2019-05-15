@@ -14,7 +14,7 @@ if __name__ == "__main__":
     user_socket = socket_socket(SOCKET_AF_INET, SOCKET_SOCK_DGRAM)
     user_socket.settimeout(5)
     while True:
-        console_input = input()
+        console_input = input()  # Server can handle only version 4 IP addresses
         if console_input == USER_STOP_COMMAND:
             break
 
@@ -25,15 +25,3 @@ if __name__ == "__main__":
             print(user_socket.recvfrom(4096)[0].decode())
         except socket_timeout:
             pass
-
-# TODO: What with the packets???
-# TODO: Change server connection to TCP
-# python.or
-# Non-Authoritative answer:
-# 45.55.99.72
-#
-# Non-Authoritative answer:
-# 45.55.99.72
-# 1
-# Non-Authoritative answer:
-# 45.55.99.72
