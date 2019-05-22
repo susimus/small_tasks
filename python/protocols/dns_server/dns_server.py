@@ -27,8 +27,8 @@ class CachingDNS:
     _SERVER_PORT = 53
     _SERVER_CACHE_FILE = "dns_server_cache.dat"
     _SERVER_STOP_COMMAND = "SERVER_STOP"
-    _SERVER_DNS = "192.168.1.1"  # it is router!
-    _SERVER_TTL = 100  # seconds
+    _SERVER_DNS = "10.98.240.10"  # it is router!
+    _SERVER_TTL = 1000  # seconds
 
     _IP_REGEXP = re_compile(r'\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}\b')
     _QUERY_FORMAT_REGEXP = re_compile(r'(ip|domain)\s(\w+\.)+\w+\s(A|AAAA|PTR|NS)$')
