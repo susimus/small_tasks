@@ -49,7 +49,7 @@ deep_search_stack = [start_vertex]
 while len(deep_search_stack) != 0:
     current_vertex = deep_search_stack.pop()
 
-    for position_shift in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+    for position_shift in [(0, -1), (0, 1), (-1, 0), (1, 0)][::-1]:
         shifted_vertex = (
             current_vertex[0] + position_shift[0],
             current_vertex[1] + position_shift[1])
