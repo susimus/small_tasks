@@ -1,74 +1,78 @@
-from sys import exit as sys_exit
-from collections import deque
+from typing import List, Tuple, Optional
 from re import sub as re_sub
 
 
 with open("in.txt") as input_file:
-    vertices_count = int(input_file.readline())
+    n: int = int(input_file.readline())
 
-    if vertices_count < 3:
-        with open("out.txt", "w") as output_file:
-            output_file.write("A")
-        sys_exit(0)
+    # In form of adjacency matrix
+    graph: List[List[Optional[int]]] = [
+        [None for _ in range(n)] for _ in range(n)]
 
-    adjacency_matrix = []
+    for i in range(n):
+        matrix_line: List[str] = (
+            re_sub(' +', ' ', input_file.readline()).split(" "))
 
-    for i in range(vertices_count):
-        matrix_line = re_sub(' +', ' ', input_file.readline()).split(" ")
-        adjacency_matrix.append([])
+        for j in range(n):
+            graph[i][j] = int(matrix_line[j])
+                                               
+infinity: int = 32767
+vertex_is_used: List[bool] = [False for _ in range(n)]
 
-        for j in range(vertices_count):
-            adjacency_matrix[i].append(int(matrix_line[j]))
+# Хранит вес ребра: это ребро является наименьшим по весу среди тех, которые
+#   инцидентны вершине i и вершине из растущего дерева одновременно.
+# Если вершина уже в остове, то вес = 0
+min_edge_weight: List[int] = [infinity for _ in range(n)]
+min_edge_weight[0] = 0
+# Аналогично, но хранит вершину-конец такого ребра
+min_edge_vertex: List[int] = [-1 for i in range(n)]
 
-previous_vertex = [-1 for i in range(vertices_count)]
-visited_vertices = set()
-broad_search_queue = deque([0])
+spanning_tree_edges: List[Tuple[int, int]] = []
+spanning_tree_weight: int = 0
 
-while len(visited_vertices) != vertices_count:
-    current_vertex = -1
-    if len(broad_search_queue) == 0:
-        for vertex in range(vertices_count):
-            if vertex not in visited_vertices:
-                current_vertex = vertex
-                break
+for i in range(n):
+    v: int = -1
 
-        assert current_vertex != -1, "Failed when resolving 'current_vertex'"
-    else:
-        current_vertex = broad_search_queue.popleft()
+    # Подбираем вершину: она ещё не в остове И в [min_edge_weight] у такой
+    #   вершины лежит минимальный вес
+    for j in range(n):
+        if (
+                not vertex_is_used[j]
+                and (v == -1 or min_edge_weight[j] < min_edge_weight[v])):
+            v = j
 
-    for vertex in range(vertices_count):
-        if (adjacency_matrix[current_vertex][vertex] == 1 and
-                vertex != previous_vertex[current_vertex]):
-            if vertex not in visited_vertices:
-                broad_search_queue.append(vertex)
-                previous_vertex[vertex] = current_vertex
-            else:
-                path_current_vertex = deque([current_vertex])
-                path_vertex = deque([vertex])
+    # Выше не нашли подходящую вершину => входящий граф не связен
+    assert min_edge_weight[v] != infinity, "No MST"
 
-                while (previous_vertex[path_vertex[0]] != -1 or
-                        previous_vertex[path_current_vertex[0]] != -1):
-                    if previous_vertex[path_vertex[0]] != -1:
-                        path_vertex.appendleft(previous_vertex[path_vertex[0]])
-                    if previous_vertex[path_current_vertex[0]] != -1:
-                        path_current_vertex.appendleft(previous_vertex[path_current_vertex[0]])
+    # Помечаем вершину как использованную
+    vertex_is_used[v] = True
 
-                intersection_length = len(
-                    set.intersection(set(path_vertex), set(path_current_vertex)))
-                cycle_vertices = sorted(
-                    list(path_vertex)[intersection_length - 1:] +
-                    list(path_current_vertex)[intersection_length:])
-                cycle_vertices = [element + 1 for element in cycle_vertices]
+    # Проверка, что для выбранной вершины был отработан подбор нужного мин
+    #   ребра
+    if min_edge_vertex[v] != -1:
+        spanning_tree_edges.append((v, min_edge_vertex[v]))
 
-                with open("out.txt", "w") as output_file:
-                    output_file.write("N\n")
-                    output_file.write(str(sorted(cycle_vertices))[1:-1])
-                sys_exit(0)
+        spanning_tree_weight += min_edge_weight[v]
 
-    visited_vertices.add(current_vertex)
+    # Подбираем нужные ребра для массивов [min_edge_weight] и [min_edge_vertex]
+    for to in range(n):
+        if graph[v][to] < min_edge_weight[to]:
+            min_edge_weight[to] = graph[v][to]
 
-assert len(broad_search_queue) == 0
+            min_edge_vertex[to] = v
 
-with open("out.txt", "w") as output_file:
-    output_file.write("A")
-sys_exit(0)
+# In form of adjacency lists
+result_tree: List[List[int]] = [list() for i in range(n)]
+
+for edge in spanning_tree_edges:
+    result_tree[edge[0]].append(edge[1])
+    result_tree[edge[1]].append(edge[0])
+
+with open('out.txt', 'w') as output:
+    for adjacent_vertices in result_tree:
+        for adjacent_vertex in sorted(adjacent_vertices):
+            output.write(f'{adjacent_vertex + 1} ')
+
+        output.write('0\n')
+
+    output.write(str(spanning_tree_weight))
