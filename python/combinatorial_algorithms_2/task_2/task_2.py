@@ -22,13 +22,13 @@ if __name__ == '__main__':
             adjacency_list: List[str] = (
                 re_sub(' +', ' ', input_file.readline()).split())
 
-            if len(adjacency_list) == 0:
+            if len(adjacency_list) == 1:
                 with open('out.txt', 'w') as output_handle:
-                    output_handle.write('N\n1')
+                    output_handle.write(f'N\n{i + 1}')
 
                 sys_exit()
 
-            for j in range(len(adjacency_list)):
+            for j in range(len(adjacency_list) - 1):
                 # Вершины на входе начинаются с 1 (?), поэтому '- 1'
                 graph[i][int(adjacency_list[j]) - 1] = 1
 
@@ -87,6 +87,8 @@ if __name__ == '__main__':
         # 1, 3, 5, ... -> индексы вершин из Y
         s_t_path: List[int] = []
 
+        s_t_path_was_created: bool = False
+
         while len(dfs_stack) != 0:
             # Взять верхнюю вершину из стека в строящийся (s, t) путь,
             # если она смежна с последней вершиной в этом пути
@@ -113,6 +115,7 @@ if __name__ == '__main__':
             if (len(s_t_path) % 2 == 0
                     and not any(
                         [flow[v][s_t_path[-1]] == 1 for v in range(K)])):
+                s_t_path_was_created = True
                 break
 
             current_vertex: int = s_t_path[-1]
@@ -145,7 +148,7 @@ if __name__ == '__main__':
                             and j not in used_x):
                         dfs_stack.append((1, j, s_t_path[-1]))
 
-        if len(s_t_path) == 0:
+        if not s_t_path_was_created:
             with open('out.txt', 'w') as output_handle:
                 output_handle.write('N\n' + str(i + 1))
 
