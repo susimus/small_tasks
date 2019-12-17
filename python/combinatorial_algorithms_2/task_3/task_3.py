@@ -1,43 +1,43 @@
-from sys import exit as sys_exit
-from re import sub as re_sub
+from typing import List, Set, Tuple, Deque
+from collections import deque
 
 
-with open("in.txt") as input_file:
-    n = int(input_file.readline())
-
-    adjacency_matrix = []
+with open("in.txt") as input_handle:
+    n: int = int(input_handle.readline())
+    labyrinth: List[str] = []
 
     for i in range(n):
-        matrix_line = re_sub(' +', ' ', input_file.readline()).split(" ")
-        adjacency_matrix.append([])
+        labyrinth.append(input_handle.readline())
 
-        for j in range(n):
-            adjacency_matrix[i].append(int(matrix_line[j]))
+used: Set[Tuple[int, int]] = {(0, 0), (n - 1, n - 1)}
+bfs_queue: Deque[Tuple[int, int]] = deque()
+total_price: int = 0
 
-# vector < vector<int> > g;  # adjacency_matrix
-# const int INF = 32767; // значение "бесконечность"
-#
-# // алгоритм
-# vector<bool> used (n);
-# vector<int> min_e (n, INF), sel_e (n, -1);
-# min_e[0] = 0;
-# for (int i=0; i<n; ++i) {
-# 	int v = -1;
-# 	for (int j=0; j<n; ++j)
-# 		if (!used[j] && (v == -1 || min_e[j] < min_e[v]))
-# 			v = j;
-# 	if (min_e[v] == INF) {
-# 		cout << "No MST!";
-# 		exit(0);
-# 	}
-#
-# 	used[v] = true;
-# 	if (sel_e[v] != -1)
-# 		cout << v << " " << sel_e[v] << endl;
-#
-# 	for (int to=0; to<n; ++to)
-# 		if (g[v][to] < min_e[to]) {
-# 			min_e[to] = g[v][to];
-# 			sel_e[to] = v;
-# 		}
-# }
+for cell in [(0, 1), (1, 0), (n - 1, n - 2), (n - 2, n - 1)]:
+    if labyrinth[cell[0]][cell[1]] == '.':
+        bfs_queue.append(cell)
+        used.add(cell)
+
+    elif labyrinth[cell[0]][cell[1]] == '+':
+        total_price += 9
+
+while len(bfs_queue) != 0:
+    current_cell: Tuple[int, int] = bfs_queue.popleft()
+
+    adjacent_vertices: List[Tuple[int, int]] = (
+        [(current_cell[0] + 1, current_cell[1]),
+         (current_cell[0] - 1, current_cell[1]),
+         (current_cell[0], current_cell[1] + 1),
+         (current_cell[0], current_cell[1] - 1)])
+
+    for cell in adjacent_vertices:
+        if (cell[0] >= n or cell[0] < 0 or cell[1] >= n or cell[1] < 0
+                or labyrinth[cell[0]][cell[1]] == '+'):
+            total_price += 9
+
+        elif labyrinth[cell[0]][cell[1]] == '.' and cell not in used:
+            bfs_queue.append(cell)
+            used.add(cell)
+
+with open('out.txt', 'w') as output_handle:
+    output_handle.write(str(total_price))
