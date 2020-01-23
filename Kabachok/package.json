@@ -1,0 +1,19 @@
+{
+  "name": "kabachok",
+  "version": "1.0.0",
+  "description": "Bar with tables",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vyatskov S.",
+  "license": "ISC",
+  "dependencies": {
+    "bootstrap": "^4.4.1",
+    "express": "^4.17.1",
+    "hbs": "^4.1.0",
+    "jquery": "^3.4.1",
+    "mongodb": "^3.5.2",
+    "popper.js": "^1.16.0"
+  }
+}
