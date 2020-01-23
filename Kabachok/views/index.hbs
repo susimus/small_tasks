@@ -1,10 +1,147 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <meta 
+        name="viewport" 
+        content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
+    <link 
+        rel="stylesheet" 
+        href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" 
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <style>
+        h1.main_text {
+            text-align: center;
+        }
+
+        img.layout_image {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 50%;
+        }
+    </style>
 </head>
 
 <body>
-{{some_field}}
+    <h1 class="main_text">Бар "Кабачок"</h1>
+    <img src="http:\\localhost:3000\layout.png" class="layout_image">
+    <br>
+
+    <h2>Проверить доступность столика:</h2>
+    <form method="POST" action="/index.html#access_result">
+        <input type="hidden" name="query_type" value="access">
+
+        Столик:<br>
+        {{#each tables}}
+            {{this}} 
+            <input 
+                type="radio" 
+                name="table" 
+                value="{{this}}" checked><br>
+        {{/each}}
+        <br>
+
+        Дата:<br>
+        <select name="date">
+            {{#each dates}}
+                <option value="{{this}}">{{this}}</option>
+            {{/each}}
+        </select>
+        <br><br>
+
+        Время начала бронирования:<br>
+        <select name="time_start">
+            {{#each select_time}}
+                <option value="{{this}}">{{this}}</option>
+            {{/each}}
+        </select>
+        <br><br>
+
+        Время конца бронирования:<br>
+        <select name="time_end">
+            {{#each select_time}}
+                <option value="{{this}}">{{this}}</option>
+            {{/each}}
+        </select>
+        <br><br>
+
+        <input type="submit" value="Проверить доступность">
+    </form m>
+    <br>
+
+    <a id="access_result"></a>
+    <font color="red">{{access_result}}</font><br><br>
+
+    <h2>Забронировать столик(и):</h2>
+    <form method="POST" action="\index.html#reservation_result">
+        <input type="hidden" name="query_type" value="reservation">
+
+        Имя:<br>
+        <input type="text" name="name">
+        <br><br>
+        
+        Телефон:<br>
+        <input type="text" name="phone">
+        <br><br>
+
+        Электронная почта:<br>
+        <input type="text" name="email">
+        <br><br>
+
+        Столик(и):<br>
+        {{#each tables}}
+            {{this}} 
+            <input 
+                type="checkbox" 
+                name="table{{this}}"><br>
+        {{/each}}
+        <br>
+
+        Дата:<br>
+        <select name="date">
+            {{#each dates}}
+                <option value="{{this}}">{{this}}</option>
+            {{/each}}
+        </select>
+        <br><br>
+
+        Время начала бронирования:<br>
+        <select name="time_start">
+            {{#each select_time}}
+                <option value="{{this}}">{{this}}</option>
+            {{/each}}
+        </select>
+        <br><br>
+
+        Время конца бронирования:<br>
+        <select name="time_end">
+            {{#each select_time}}
+                <option value="{{this}}">{{this}}</option>
+            {{/each}}
+        </select>
+        <br><br>
+
+        <input type="submit" value="Заказать столик(и)">
+    </form>
+    <br>
+
+    <a id="reservation_result"></a>
+    <font color="red">{{reservation_result}}</font>
+
+    <script 
+        src="https://code.jquery.com/jquery-3.2.1.slim.min.js" 
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" 
+        crossorigin="anonymous"></script>
+    <script 
+        src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" 
+        integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" 
+        crossorigin="anonymous"></script>
+    <script 
+        src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" 
+        integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" 
+        crossorigin="anonymous"></script>
 </body>
 </html>
