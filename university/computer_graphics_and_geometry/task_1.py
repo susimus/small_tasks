@@ -13,7 +13,12 @@ from tkinter import (
 
 class FuncDrawer:
     _VARS_NAMES: List[str] = ['y_abs_max', 'alpha', 'beta', 'a', 'b', 'c']
-    _AXES_INDENT: int = 5
+
+    _AXES_INDENT: int = 0
+    _COORDINATE_GRID_INDENT: int = 40
+
+    _BLACK_COLOR: str = "#000000"
+    _RED_COLOR: str = "#FF0000"
 
     _root: Tk
     _canvas: Canvas
@@ -146,32 +151,84 @@ class FuncDrawer:
             state="normal")
 
     def _draw_coordinate_plane(self):
-        self.canvas_center = (
+        self._canvas_center = (
             self._canvas.winfo_width() // 2, self._canvas.winfo_height() // 2)
 
         self._draw_horizontal_lines()
+        self._draw_horizontal_arrow()
+
+
 
         self._draw_vertical_lines()
+        self._draw_vertical_arrow()
 
-    # TODO: _draw_horizontal_lines
     def _draw_horizontal_lines(self):
-        for i in range(
-                self._AXES_INDENT,
-                self._canvas.winfo_width() - self._AXES_INDENT):
-            self._canvas_image.put("#000000", (i, self.canvas_center[1]))
+        def draw_horizontal_line(
+                x1: int, x2: int, y: int, color: str = self._BLACK_COLOR):
+            for _i in range(x1, x2 + 1):
+                self._canvas_image.put(color, (_i, y))
 
+        draw_horizontal_line(
+            self._AXES_INDENT,
+            self._canvas.winfo_width() - self._AXES_INDENT,
+            self._canvas_center[1],
+            self._RED_COLOR)
+
+        for i in range(
+                1, self._canvas_center[1] // self._COORDINATE_GRID_INDENT + 1):
+            draw_horizontal_line(
+                self._AXES_INDENT,
+                self._canvas.winfo_width() - self._AXES_INDENT,
+                self._canvas_center[1] + i * self._COORDINATE_GRID_INDENT)
+            draw_horizontal_line(
+                self._AXES_INDENT,
+                self._canvas.winfo_width() - self._AXES_INDENT,
+                self._canvas_center[1] - i * self._COORDINATE_GRID_INDENT)
+
+    def _draw_horizontal_arrow(self):
         for i in range(1, 10):
             self._canvas_image.put(
-                "#000000",
+                self._RED_COLOR,
                 (self._canvas.winfo_width() - self._AXES_INDENT - i,
-                 self.canvas_center[1] - i // 2))
+                 self._canvas_center[1] - i // 2))
             self._canvas_image.put(
-                "#000000",
+                self._RED_COLOR,
                 (self._canvas.winfo_width() - self._AXES_INDENT - i,
-                 self.canvas_center[1] + i // 2))
+                 self._canvas_center[1] + i // 2))
 
     # TODO: _draw_vertical_lines
     def _draw_vertical_lines(self):
+        def draw_vertical_line(y1: int, y2: int, x: int):
+            for _i in range(y1, y2 + 1):
+                self._canvas_image.put(self._BLACK_COLOR, (x, _i))
+
+        draw_vertical_line(
+            self._AXES_INDENT,
+            self._canvas.winfo_height() - self._AXES_INDENT,
+            self._canvas_center[0])
+
+        for i in range(
+                1, self._canvas_center[0] // self._COORDINATE_GRID_INDENT + 1):
+            draw_vertical_line(
+                self._AXES_INDENT,
+                self._canvas.winfo_height() - self._AXES_INDENT,
+                self._canvas_center[0] + i * self._COORDINATE_GRID_INDENT)
+            draw_vertical_line(
+                self._AXES_INDENT,
+                self._canvas.winfo_height() - self._AXES_INDENT,
+                self._canvas_center[0] - i * self._COORDINATE_GRID_INDENT)
+
+    # TODO: _draw_vertical_arrow
+    def _draw_vertical_arrow(self):
+        # for i in range(1, 10):
+        #     self._canvas_image.put(
+        #         self._BLACK_COLOR,
+        #         (self._canvas.winfo_width() - self._AXES_INDENT - i,
+        #          self._canvas_center[1] - i // 2))
+        #     self._canvas_image.put(
+        #         self._BLACK_COLOR,
+        #         (self._canvas.winfo_width() - self._AXES_INDENT - i,
+        #          self._canvas_center[1] + i // 2))
         pass
 
     # TODO: _draw_func_pixels
