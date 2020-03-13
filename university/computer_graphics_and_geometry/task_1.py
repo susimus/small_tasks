@@ -20,6 +20,7 @@ class FuncDrawer:
 
     _GREY_COLOR: str = "#aaaaaa"
     _RED_COLOR: str = "#FF0000"
+    _BLUE_COLOR: str = '#0000FF'
 
     _root: Tk
     _canvas: Canvas
@@ -161,6 +162,8 @@ class FuncDrawer:
 
         self._draw_vertical_lines()
 
+        self._calculate_scaling()
+
         # self._draw_x_scale_division()
         # self._draw_y_scale_division()
 
@@ -210,6 +213,16 @@ class FuncDrawer:
         #     2 * self._COORDINATE_GRID_INDENT,
         #     self._RED_COLOR)
 
+    def _calculate_scaling(self):
+        self._x_in_pixel = (
+                abs(self._current_vars_values['beta']
+                    - self._current_vars_values['alpha'])
+                / self._canvas.winfo_width())
+
+        self._y_in_pixel = (
+            self._current_vars_values['y_abs_max'] * 2
+            / self._canvas.winfo_height())
+
     # def _draw_x_scale_division(self):
     #     # Draw vertical dash
     #     self._draw_vertical_line(
@@ -217,12 +230,6 @@ class FuncDrawer:
     #         self._canvas_center[1] + self._DASH_HALF_DIAMETER,
     #         self._COORDINATE_GRID_INDENT,
     #         self._RED_COLOR)
-    #
-    #     # Calculate how many x coordinates in one pixel
-    #     self._x_in_pixel = (
-    #             abs(self._current_vars_values['beta']
-    #                 - self._current_vars_values['alpha'])
-    #             / self._canvas.winfo_width())
     #
     #     # Draw number in front of the dash
     #     self._canvas.create_text(
@@ -252,15 +259,21 @@ class FuncDrawer:
         for _i in range(y1, y2 + 1):
             self._canvas_image.put(color, (x, _i))
 
-    # TODO: _draw_func_pixels
     def _draw_func_pixels(self):
-        # for x in range(4 * int(self._canvas.winfo_width())):
-        #     y = int(
-        #         float(self._canvas.winfo_height()) / 2
-        #         + float(self._canvas.winfo_height()) / 4 * sin(x / 80.0))
-        #
-        #     self._canvas_image.put("#000000", (x // 4, y))
-        pass
+        for xx in range(self._canvas.winfo_width()):
+            y: Optional[float] = self.get_func_value(
+                     self._current_vars_values['alpha']
+                     + xx * self._x_in_pixel,
+                     self._current_vars_values['a'],
+                     self._current_vars_values['b'],
+                     self._current_vars_values['c'])
+
+            if y is not None:
+                yy: int = int(abs(
+                    (y / self._y_in_pixel) - self._canvas_center[1]))
+
+                if 0 <= yy < self._canvas.winfo_height():
+                    self._canvas_image.put(self._BLUE_COLOR, (xx, yy))
 
     @staticmethod
     def get_func_value(
