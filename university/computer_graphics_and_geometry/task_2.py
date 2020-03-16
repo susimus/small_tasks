@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Tuple
+from typing import Dict, List, Tuple
 from tkinter import (
     Tk,
     Canvas,
@@ -9,10 +9,11 @@ from tkinter import (
     Button,
     mainloop,
     NSEW)
+from math import sin, cos, pi
 
 
 class FuncDrawer:
-    _VARS_NAMES: List[str] = ['y_abs_max', 'alpha', 'beta', 'a', 'b', 'c']
+    _VARS_NAMES: List[str] = ['r_max', 'a', 'b']
 
     _AXES_INDENT: int = 0
     _COORDINATE_GRID_INDENT: int = 40
@@ -21,6 +22,12 @@ class FuncDrawer:
     _GREY_COLOR: str = "#aaaaaa"
     _RED_COLOR: str = "#FF0000"
     _BLUE_COLOR: str = '#0000FF'
+
+    # Coefficients are different to prevent bug when searching loop becomes
+    # infinite
+    _INCREASING_COEFFICIENT: float = 2
+    _DECREASING_COEFFICIENT: float = 3
+    _MIN_ANGLE_STEP: float = 10**-3
 
     _root: Tk
     _canvas: Canvas
@@ -36,8 +43,7 @@ class FuncDrawer:
     _current_vars_values: Dict[str, float]
 
     _canvas_center: Tuple[int, int]
-    _x_in_pixel: float
-    _y_in_pixel: float
+    _r_in_pixel: float
 
     def __init__(self):
         self._root = Tk()
@@ -71,7 +77,7 @@ class FuncDrawer:
 
         self._setup_window.resizable(False, False)
 
-        self._func_image = PhotoImage(file="task_1_func.png")
+        self._func_image = PhotoImage(file="task_2_func.png")
         self._func_image_label = Label(
             master=self._setup_window, image=self._func_image)
 
@@ -197,31 +203,27 @@ class FuncDrawer:
                  self._canvas_center[1] + i // 2))
 
     def _draw_vertical_lines(self):
+        self._draw_vertical_line(
+            self._AXES_INDENT,
+            self._canvas.winfo_height() - self._AXES_INDENT,
+            self._canvas_center[0],
+            self._RED_COLOR)
+
         for i in range(
-                1,
-                self._canvas.winfo_width()
-                // self._COORDINATE_GRID_INDENT + 1):
+                1, self._canvas_center[0] // self._COORDINATE_GRID_INDENT + 1):
             self._draw_vertical_line(
                 self._AXES_INDENT,
                 self._canvas.winfo_height() - self._AXES_INDENT,
-                i * self._COORDINATE_GRID_INDENT)
-
-        # # Draws pseudo OY axis for ordinates scale division drawing further
-        # self._draw_vertical_line(
-        #     self._AXES_INDENT,
-        #     self._canvas.winfo_height() - self._AXES_INDENT,
-        #     2 * self._COORDINATE_GRID_INDENT,
-        #     self._RED_COLOR)
+                self._canvas_center[0] + i * self._COORDINATE_GRID_INDENT)
+            self._draw_vertical_line(
+                self._AXES_INDENT,
+                self._canvas.winfo_height() - self._AXES_INDENT,
+                self._canvas_center[0] - i * self._COORDINATE_GRID_INDENT)
 
     def _calculate_scaling(self):
-        self._x_in_pixel = (
-                abs(self._current_vars_values['beta']
-                    - self._current_vars_values['alpha'])
+        self._r_in_pixel = (
+                self._current_vars_values['r_max']
                 / self._canvas.winfo_width())
-
-        self._y_in_pixel = (
-            self._current_vars_values['y_abs_max'] * 2
-            / self._canvas.winfo_height())
 
     # def _draw_x_scale_division(self):
     #     # Draw vertical dash
@@ -251,40 +253,46 @@ class FuncDrawer:
 
     def _draw_horizontal_line(
             self, x1: int, x2: int, y: int, color: str = _GREY_COLOR):
-        for _i in range(x1, x2 + 1):
-            self._canvas_image.put(color, (_i, y))
+        for i in range(x1, x2 + 1):
+            self._canvas_image.put(color, (i, y))
 
     def _draw_vertical_line(
             self, y1: int, y2: int, x: int, color: str = _GREY_COLOR):
-        for _i in range(y1, y2 + 1):
-            self._canvas_image.put(color, (x, _i))
+        for i in range(y1, y2 + 1):
+            self._canvas_image.put(color, (x, i))
 
     def _draw_func_pixels(self):
-        for xx in range(self._canvas.winfo_width()):
-            y: Optional[float] = self.get_func_value(
-                     self._current_vars_values['alpha']
-                     + xx * self._x_in_pixel,
-                     self._current_vars_values['a'],
-                     self._current_vars_values['b'],
-                     self._current_vars_values['c'])
+        angle: float = 0
+        angle_step: float = 0
 
-            if y is not None:
-                yy: int = int(abs(
-                    (y / self._y_in_pixel) - self._canvas_center[1]))
+        # Border is set according with given func
+        while angle + angle_step < 2 * pi:
+            angle += angle_step
+            radius: float = self.get_func_value(
+                angle,
+                self._current_vars_values['a'],
+                self._current_vars_values['b'])
+            pixel_position: Tuple[int, int] = (
+                self._get_pixel_position_from_func_values(angle, radius))
 
-                if 0 <= yy < self._canvas.winfo_height():
-                    self._canvas_image.put(self._BLUE_COLOR, (xx, yy))
+            self._canvas_image.put(self._BLUE_COLOR, pixel_position)
+
+            angle_step = self._get_new_angle_step(angle_step)
+
+    # Improvement: Dynamic step when next pixel is near previous
+    def _get_new_angle_step(self, prev_angle_step: float) -> float:
+        return self._MIN_ANGLE_STEP
+
+    def _get_pixel_position_from_func_values(
+            self, angle: float, radius: float) -> Tuple[int, int]:
+        return (self._canvas_center[0]
+                + int(radius * cos(angle) / self._r_in_pixel),
+                self._canvas_center[1]
+                + int(radius * sin(angle) / self._r_in_pixel))
 
     @staticmethod
-    def get_func_value(
-            _x: float,
-            _a: float,
-            _b: float,
-            _c: float) -> Optional[float]:
-        if _b + _x == 0 or _c - _x == 0:
-            return None
-        else:
-            return (_a * _x) / ((_b + _x) * pow(_c - _x, 2))
+    def get_func_value(angle: float, a: float, b: float) -> float:
+        return a + b * cos(angle)
 
 
 if __name__ == "__main__":

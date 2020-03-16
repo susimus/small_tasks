@@ -277,14 +277,11 @@ class FuncDrawer:
 
     @staticmethod
     def get_func_value(
-            _x: float,
-            _a: float,
-            _b: float,
-            _c: float) -> Optional[float]:
-        if _b + _x == 0 or _c - _x == 0:
+            x: float, a: float, b: float, c: float) -> Optional[float]:
+        if b + x == 0 or c - x == 0:
             return None
         else:
-            return (_a * _x) / ((_b + _x) * pow(_c - _x, 2))
+            return (a * x) / ((b + x) * pow(c - x, 2))
 
 
 if __name__ == "__main__":
