@@ -275,6 +275,9 @@ class FuncDrawer:
             pixel_position: Tuple[int, int] = (
                 self._get_pixel_position_from_func_values(angle, radius))
 
+            if pixel_position[0] < 0 or pixel_position[1] < 0:
+                continue
+
             self._canvas_image.put(self._BLUE_COLOR, pixel_position)
 
             angle_step = self._get_new_angle_step(angle_step)
