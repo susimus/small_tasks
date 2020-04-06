@@ -18,6 +18,8 @@ class FuncDrawer:
     _AXES_INDENT: int = 0
     _COORDINATE_GRID_INDENT: int = 40
     _DASH_HALF_DIAMETER: int = 5
+    _VERTICAL_DASH_NUMBER_INDENT: int = 10
+    _HORIZONTAL_DASH_NUMBER_INDENT: int = 17
 
     _GREY_COLOR: str = "#aaaaaa"
     _RED_COLOR: str = "#FF0000"
@@ -104,12 +106,6 @@ class FuncDrawer:
             self._input_entries[name].grid(row=2 * i + 2)
         self._draw_button.grid(row=len(self._VARS_NAMES) * 2 + 1)
 
-    # def _redraw_func(self, event):
-    #     """Draws func if new width or height was given"""
-    #     if (event.width != self._canvas_width
-    #             or event.height != self._canvas_height):
-    #         self._draw_func()
-
     def _draw_new_func(self):
         """Changes consts and invokes [_draw_func] if consts were changed"""
         consts_were_changed: bool = self._change_consts()
@@ -164,14 +160,12 @@ class FuncDrawer:
             self._canvas.winfo_width() // 2, self._canvas.winfo_height() // 2)
 
         self._draw_horizontal_lines()
-        self._draw_horizontal_axis_arrow()
-
         self._draw_vertical_lines()
 
         self._calculate_scaling()
 
-        # self._draw_x_scale_division()
-        # self._draw_y_scale_division()
+        self._draw_vertical_scale_divisions()
+        self._draw_horizontal_scale_divisions()
 
     def _draw_horizontal_lines(self):
         self._draw_horizontal_line(
@@ -190,17 +184,6 @@ class FuncDrawer:
                 self._AXES_INDENT,
                 self._canvas.winfo_width() - self._AXES_INDENT,
                 self._canvas_center[1] - i * self._COORDINATE_GRID_INDENT)
-
-    def _draw_horizontal_axis_arrow(self):
-        for i in range(1, 10):
-            self._canvas_image.put(
-                self._RED_COLOR,
-                (self._canvas.winfo_width() - self._AXES_INDENT - i,
-                 self._canvas_center[1] - i // 2))
-            self._canvas_image.put(
-                self._RED_COLOR,
-                (self._canvas.winfo_width() - self._AXES_INDENT - i,
-                 self._canvas_center[1] + i // 2))
 
     def _draw_vertical_lines(self):
         self._draw_vertical_line(
@@ -223,33 +206,75 @@ class FuncDrawer:
     def _calculate_scaling(self):
         self._r_in_pixel = (
                 self._current_vars_values['r_max']
-                / self._canvas.winfo_width())
+                / (min(self._canvas.winfo_width(),
+                       self._canvas.winfo_height()) // 2))
 
-    # def _draw_x_scale_division(self):
-    #     # Draw vertical dash
-    #     self._draw_vertical_line(
-    #         self._canvas_center[1] - self._DASH_HALF_DIAMETER,
-    #         self._canvas_center[1] + self._DASH_HALF_DIAMETER,
-    #         self._COORDINATE_GRID_INDENT,
-    #         self._RED_COLOR)
-    #
-    #     # Draw number in front of the dash
-    #     self._canvas.create_text(
-    #         (self._COORDINATE_GRID_INDENT,
-    #          self._canvas_center[1] + self._DASH_HALF_DIAMETER + 10),
-    #         text='{:.2f}'.format(float(self._COORDINATE_GRID_INDENT)
-    #                              * self._x_in_pixel
-    #                              + self._current_vars_values['alpha']),
-    #         fill='red')
-    #
-    # def _draw_y_scale_division(self):
-    #     # Draw horizontal dash
-    #     self._draw_horizontal_line(
-    #         2 * self._COORDINATE_GRID_INDENT - self._DASH_HALF_DIAMETER,
-    #         2 * self._COORDINATE_GRID_INDENT + self._DASH_HALF_DIAMETER,
-    #         self._canvas_center[1] - self._COORDINATE_GRID_INDENT,
-    #         self._RED_COLOR)
-    #     pass
+    def _draw_vertical_scale_divisions(self):
+        for i in range(
+                1, self._canvas_center[0] // self._COORDINATE_GRID_INDENT + 1):
+            self._draw_vertical_line(
+                self._canvas_center[1] - self._DASH_HALF_DIAMETER,
+                self._canvas_center[1] + self._DASH_HALF_DIAMETER,
+                self._canvas_center[0] + i * self._COORDINATE_GRID_INDENT,
+                self._RED_COLOR)
+            self._draw_vertical_line(
+                self._canvas_center[1] - self._DASH_HALF_DIAMETER,
+                self._canvas_center[1] + self._DASH_HALF_DIAMETER,
+                self._canvas_center[0] - i * self._COORDINATE_GRID_INDENT,
+                self._RED_COLOR)
+
+            self._canvas.create_text(
+                (self._canvas_center[0] + i * self._COORDINATE_GRID_INDENT,
+                 self._canvas_center[1]
+                 + self._DASH_HALF_DIAMETER
+                 + self._VERTICAL_DASH_NUMBER_INDENT),
+                text='{:.2f}'.format(float(self._COORDINATE_GRID_INDENT)
+                                     * self._r_in_pixel
+                                     * i),
+                fill='red')
+            self._canvas.create_text(
+                (self._canvas_center[0] - i * self._COORDINATE_GRID_INDENT,
+                 self._canvas_center[1]
+                 + self._DASH_HALF_DIAMETER
+                 + self._VERTICAL_DASH_NUMBER_INDENT),
+                text='{:.2f}'.format(float(self._COORDINATE_GRID_INDENT)
+                                     * self._r_in_pixel
+                                     * i),
+                fill='red')
+
+    def _draw_horizontal_scale_divisions(self):
+        for i in range(
+                1, self._canvas_center[1] // self._COORDINATE_GRID_INDENT + 1):
+            self._draw_horizontal_line(
+                self._canvas_center[0] - self._DASH_HALF_DIAMETER,
+                self._canvas_center[0] + self._DASH_HALF_DIAMETER,
+                self._canvas_center[1] + i * self._COORDINATE_GRID_INDENT,
+                self._RED_COLOR)
+            self._draw_horizontal_line(
+                self._canvas_center[0] - self._DASH_HALF_DIAMETER,
+                self._canvas_center[0] + self._DASH_HALF_DIAMETER,
+                self._canvas_center[1] - i * self._COORDINATE_GRID_INDENT,
+                self._RED_COLOR)
+
+            scale_division_number: float = (
+                float(self._COORDINATE_GRID_INDENT) * self._r_in_pixel * i)
+
+            self._canvas.create_text(
+                (self._canvas_center[0]
+                 + self._DASH_HALF_DIAMETER
+                 + self._HORIZONTAL_DASH_NUMBER_INDENT
+                 + ((len(str(int(scale_division_number))) - 1) * 3),
+                 self._canvas_center[1] + i * self._COORDINATE_GRID_INDENT),
+                text='{:.2f}'.format(scale_division_number),
+                fill='red')
+            self._canvas.create_text(
+                (self._canvas_center[0]
+                 + self._DASH_HALF_DIAMETER
+                 + self._HORIZONTAL_DASH_NUMBER_INDENT
+                 + ((len(str(int(scale_division_number))) - 1) * 3),
+                 self._canvas_center[1] - i * self._COORDINATE_GRID_INDENT),
+                text='{:.2f}'.format(scale_division_number),
+                fill='red')
 
     def _draw_horizontal_line(
             self, x1: int, x2: int, y: int, color: str = _GREY_COLOR):
